@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!--
+    Created by PhpStorm.
+    User: Saverio Delpriori
+    Date: 30/01/2017
+    Time: 14:21
+    -->
+    <!-- startpage.pstl -->
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Handlee" rel="stylesheet">
+
+
+    <title>Social Login</title>
+
+    <!--CSS styles that ensure your typeform takes up all the available screen space (DO NOT EDIT!)-->
+    <style type="text/css">
+        html{
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        iframe{
+            position: absolute;
+            left:0;
+            right:0;
+            bottom:0;
+            top:0;
+            border:0;
+        }
+        body, .bg-1 {
+            background-color: #05A3C6;
+            font-family: 'Handlee', cursive;
+            color:white;
+            font-size: 20px;
+        }
+        .text-info {
+            color:white;
+        }
+
+        #facebook-login {
+            margin-bottom: 30px;
+            margin-top: 10px;
+        }
+        .container{
+            margin-top: 50px;
+            max-width: 670px;
+        }
+    </style>
+
+</head>
+<body >
+
+
+<div class="outerframe container" id="outerframeContainer">
+
+    <div class="row" id="main-row">
+
+        <div class="col-sm-12 ">
+            <h1 class="text-center">Quanto sei locale?</h1>
+            <div class="text-center">
+                <img src="assets/icon.png" alt="Icon" width="200">
+            </div>
+            <p class='sociallogine-xplanation text-info'>
+                Prima di iniziare il questionario ti chiediamo di fare login su Facebook in questo modo ci permetterai di collezionare automaticamente alcune informazioni (come il tuo compleanno, i tuoi interessi, ecc&hellip;).
+            </p>
+        </div>
+        <div class="col-sm-12" id="facebook-login">
+            <p>
+                <script>
+                    function statusChangeCallback(response) {
+                        console.log('statusChangeCallback');
+                        console.log(response);
+
+                        if (response.status === 'connected') {
+                            onSuccess();
+                        } else if (response.status === 'not_authorized') {
+                            document.getElementById('status').innerHTML = 'Per piacere fai login nella nostra app';
+                        } else {
+                            document.getElementById('status').innerHTML = 'Per piacere entra in Facebook';
+                        }
+                    }
+
+                    function checkLoginState() {
+                        FB.getLoginStatus(function(response) {
+                            statusChangeCallback(response);
+                        });
+                    }
+                    window.fbAsyncInit = function() {
+                        FB.init({
+                            appId      : '1696722183921399',
+                            cookie     : true,
+                            xfbml      : true,
+                            version    : 'v2.5'
+                        });
+
+                        FB.getLoginStatus(function(response) {
+                            statusChangeCallback(response);
+                        });
+                    };
+
+                    // Load the SDK asynchronously
+                    (function(d, s, id) {
+                        var js, fjs = d.getElementsByTagName(s)[0];
+                        if (d.getElementById(id)) return;
+                        js = d.createElement(s); js.id = id;
+                        js.src = "https://connect.facebook.net/en_US/sdk.js";
+                        fjs.parentNode.insertBefore(js, fjs);
+                    }(document, 'script', 'facebook-jssdk'));
+
+                    function onSuccess() {
+                        console.log('Welcome!  Fetching your information.... ');
+                        FB.api('/me?fields=id,name,birthday,education,email,gender,hometown,location,political,likes.limit(100),religion', function(response) {
+                            console.log('Successful login for: ' + response.name);
+                            //console.log(response);
+                            document.getElementById('status').innerHTML = JSON.stringify(response, null, 2);
+                            document.getElementById('request_status').innerHTML = "Sto generando il questionario... (può richiedere qualche attimo)";
+
+                            $.post( "/lib/set_fb_data.php", "id="+response.id+"&data="+JSON.stringify(response, null, 2) )
+                                .done(function(data){
+                                    console.log("success!");
+                                    console.log(data);
+                                    //if(!data['completed']) { //check deactivated
+                                        if(typeof data['url'] == "string" && data['url'].startsWith('http')){
+                                            /* REDIRECT */
+                                            //document.getElementById('ls_ref').innerHTML = "redirecting...";
+                                            //window.location = data['url'];
+
+                                            /* IFRAME */
+                                            $("#survey-container").append('<iframe id="typeform-full" width="100%" height="100%" frameborder="0" src="'+data['url']+'&name='+response.name+'&embed=full"></iframe>');
+                                        }else {
+                                            document.getElementById('ls_ref').innerHTML = "Error 😨";
+                                        }
+                                    //} else {
+                                    //    document.getElementById('ls_ref').innerHTML = "Survey already completed. Thank you!";
+                                    //}
+                                }).fail(function(data){
+                                document.getElementById('ls_ref').innerHTML = "Error 😨! Survey is not available";
+                                console.log("error");
+                                console.log(data);
+                            }).always(function() {
+                                    document.getElementById('request_status').innerHTML = "";
+                                }
+                            );
+                        });
+                    }
+                </script>
+
+                <fb:login-button data-max-rows="1" data-size="large" data-show-faces="false" data-auto-logout-link="false" scope="public_profile,email,user_birthday,user_education_history,user_hometown,user_location,user_religion_politics,user_likes" onlogin="checkLoginState();" class="facebook-login-button col-sm-12 text-center">
+                </fb:login-button>
+
+            </p>
+        </div>
+
+        <div class="col-sm-6" id="social-info">
+            <p id="request_status">
+            </p>
+            <p id="ls_ref">
+            </p>
+        </div>
+
+        <pre id="status" style="display: none;"></pre>
+
+        <div class="col-sm-12 ">
+            <p class='sociallogin-optout text-info'>
+                Non preoccuparti! Se non vuoi condividere questo tipo di informazioni capiamo benissimo!
+            </p>
+            <p class='text-center'>
+                <a href="http://www.google.com" class="btn btn-default">Esci semplicemente</a>
+            </p>
+        </div>
+    </div>
+
+    <div id="survey-container">
+        <script type="text/javascript" src="https://s3-eu-west-1.amazonaws.com/share.typeform.com/embed.js"></script>
+    </div>
+</div>
+</body>
+</html>
